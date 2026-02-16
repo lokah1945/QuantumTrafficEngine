@@ -1,0 +1,17 @@
+{
+  "version": "3.0.0",
+  "comment": "QTE Clash Configuration - User editable settings only",
+  "dns": {
+    "localResolver": "172.16.100.1",
+    "comment": "Smart Gateway DNS resolver - DO NOT change unless you know what you're doing"
+  },
+  "bypass": {
+    "domains": [
+      "*.glimpseit.online",
+      "*.healthandbeauty.my.id",
+      "localhost",
+      "127.0.0.1"
+    ],
+    "comment": "Domains that should bypass proxy (DIRECT connection)"
+  }
+}

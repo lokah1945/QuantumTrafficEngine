@@ -1,0 +1,82 @@
+# --- GLOBAL SETTINGS ---
+port: 7890
+socks-port: 7891
+mixed-port: 7892
+allow-lan: false
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+ipv6: false
+
+# [STEALTH FEATURE] 
+# Menyamarkan fingerprint TLS agar terlihat seperti Chrome asli
+global-client-fingerprint: chrome
+# Mengizinkan koneksi paralel (native behavior)
+tcp-concurrent: true
+
+# --- TUN SETTINGS (The Interceptor) ---
+tun:
+  enable: true
+  stack: system
+  auto-route: true
+  auto-detect-interface: true
+  # INI KUNCINYA: Menangkap semua traffic port 53 (DST-NAT)
+  # Tidak peduli browser mau connect ke DNS mana, akan ditangkap di sini.
+  dns-hijack:
+    - any:53
+  strict-route: true
+  mtu: 9000
+
+# --- DNS SETTINGS (The Redirector) ---
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip 
+  fake-ip-range: 198.18.0.1/16
+  
+  # INI SASARANNYA: 
+  # Clash akan melempar pertanyaan DNS yang dibajak ke IP ini.
+  # Jadi browser tanya ke 8.8.8.8 -> Clash tangkap -> Clash tanya ke 172.16.100.1
+  nameserver:
+    - 172.16.100.1
+  
+  # Fallback (Opsional, jika MikroTik down)
+  fallback:
+    - 172.16.100.1
+
+# --- PROXY ---
+proxies:
+  - name: "TEST-PROXY-S5"
+    type: socks5
+    # Pastikan IP Proxy ini masih HIDUP (update jika timeout)
+    server: "74.81.81.81"
+    port: 824
+    username: "3ef33d45026b7e9e864b__cr.us"
+    password: "a69a5e521a719bdf"
+    # UDP: true Wajib untuk WebRTC/STUN
+    udp: true 
+
+# --- RULES ---
+rules:
+  # 1. [SAFETY] JANGAN Proxy IP Proxy itu sendiri (Loop)
+  - IP-CIDR,74.81.81.81/32,DIRECT
+
+  # 2. [LOCAL BYPASS] Penting! 
+  # Traffic menuju DNS Server Lokal (MikroTik) JANGAN masuk Proxy US.
+  # Kalau masuk proxy, server US tidak bisa ping ke 172.16.100.1 (IP Lokal Anda).
+  - IP-CIDR,172.16.100.1/32,DIRECT
+  - IP-CIDR,172.16.0.0/12,DIRECT 
+
+  # 3. [WEB RTC & STUN]
+  # Tangkap Process Name edge, izinkan semua traffic (TCP/UDP) masuk proxy
+  - PROCESS-NAME,msedge.exe,TEST-PROXY-S5
+
+  # 4. [DNS HIJACKING]
+  # Memastikan request port 53 diarahkan sesuai logika DNS di atas
+  - DST-PORT,53,TEST-PROXY-S5
+
+  # 5. Catch-all UDP (Backup untuk WebRTC jika process name lolos)
+  - NETWORK,UDP,TEST-PROXY-S5
+
+  # 6. Default
+  - MATCH,DIRECT
